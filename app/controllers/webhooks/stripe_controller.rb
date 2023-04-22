@@ -1,6 +1,18 @@
 class Webhooks::StripeController < Webhooks::BaseController
-  # If you'd like to override the base controller's behavior, you can do so here
-  # def create
-  #   head :ok
-  # end
+  def create
+    # Save webhook to database
+    record = InboundWebhook.create!(body: payload)
+
+    # Queue database record for processing
+    Webhooks::StripeJob.perform_later(record)
+
+    # Tell Stripe everything was successful
+    head :ok
+  end
+
+  private
+
+  def payload
+    @payload ||= request.body.read
+  end
 end
