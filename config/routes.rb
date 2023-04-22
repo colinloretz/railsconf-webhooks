@@ -1,6 +1,11 @@
 Rails.application.routes.draw do
-  # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
+  namespace :webhooks do
+    # /webhooks/movies routed to our Webhooks::MoviesController
+    resource :movies, controller: :movies, only: [:create]
 
-  # Defines the root path route ("/")
+    # /webhooks/stripe routed to our Webhooks::StripeController
+    resource :stripe, controller: :stripe, only: [:create]
+  end
+
   # root "articles#index"
 end
