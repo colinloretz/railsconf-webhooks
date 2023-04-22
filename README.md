@@ -18,10 +18,11 @@ As you evolve your own webhook handling and develop your own style, you will fin
 
 ### Branches
 
-To allow you to follow along, we've set up each step as a branch so you can see the difference from each step. `main` contains the final project with all the PRs merged but you can checkout the `starter` branch to move to the starting point. We have included instructions below under Getting Started.
+To allow you to follow along, we've set up each step as a branch so you can see the difference from each step. `main` contains the final project with all the PRs merged but you can checkout the `start-here` branch to move to the starting point. We have included instructions below under Getting Started.
 
 You can check out each subsequent step with the following branches:
 
+- `git checkout start-here`
 - `git checkout step1-routes`
 - `git checkout step2-webhook-model`
 - `git checkout step3-background-job`
@@ -34,7 +35,7 @@ Star this repository so we know you have taken this workshop!
 
 ## Pull down the workshop repository
 
-Pull down the repository and switch to the `starter` remote branch
+Pull down the repository and switch to the `start-here` remote branch
 
 ```bash
 # clone from Github
@@ -46,8 +47,8 @@ cd railsconf-webhooks
 # fetch all the upstream branches that include the steps of this workshop
 git fetch --all
 
-# checkout the starter branch
-git checkout starter
+# checkout the start-here branch
+git checkout start-here
 
 # install dependencies
 bundle install
@@ -96,7 +97,7 @@ rails generate controller Webhooks::MoviesController
 ```ruby
 # app/controllers/webhooks/movies_controller.rb
 
-class Webhooks::MoviesController < ApplicationController
+class Webhooks::MoviesController < Webhooks::BaseController
   # A controller for catching new movie webhooks
   #
   # To send a sample webhook locally:
@@ -104,7 +105,7 @@ class Webhooks::MoviesController < ApplicationController
   #   curl -X POST http://localhost:3000/webhooks/movies
   #     -H 'Content-Type: application/json'
   #     -d '{"title":"Dungeons & Dragons: Honor Among Thieves"}'
-  #  
+  #
   # If you'd like to override the base controller's behavior, you can do so here
   # def create
   #   head :ok
@@ -298,6 +299,59 @@ class Webhooks::StripeJob < ApplicationJob
 end
 ```
 
+### 3B) Updating our Webhook Controllers to enqueue jobs
+
+Now that we have our jobs defined, we need to enqueue them in our webhook controllers.
+
+Let's update both of our controllers to process these webhooks by overriding the `create` method in both controllers.
+
+```ruby
+# app/controllers/webhooks/movies_controller.rb
+
+class Webhooks::MoviesController < ApplicationController
+  def create
+    # Save webhook to database
+    record = InboundWebhook.create!(body: payload)
+
+    # Queue database record for processing
+    Webhooks::MoviesJob.perform_later(record)
+
+    head :ok
+  end
+
+  private
+
+  def payload
+    @payload ||= request.body.read
+  end
+end
+```
+
+And we can set up our Stripe controller, similarly.
+
+```ruby
+# app/controllers/webhooks/stripe_controller.rb
+
+class Webhooks::StripeController < Webhooks::BaseController
+  def create
+    # Save webhook to database
+    record = InboundWebhook.create!(body: payload)
+
+    # Queue database record for processing
+    Webhooks::StripeJob.perform_later(record)
+
+    # Tell Stripe everything was successful
+    head :ok
+  end
+
+  private
+
+  def payload
+    @payload ||= request.body.read
+  end
+end
+```
+
 💡 You can checkout the branch `step3-background-job` using `git checkout step3-background-job` to get caught up to this step before continuing.
 
 ## Step 4: Verifying Webhooks
@@ -305,6 +359,32 @@ end
 Verifying webhooks is an important step to make sure that the event is a real event that you expect from the Webhook Provider.
 
 In our controllers, we have created a `verify_event` method that is called as a before_action in our base controller.
+
+```ruby
+# app/controllers/webhooks/base_controller.rb
+
+class Webhooks::BaseController < ApplicationController
+  # Disable CSRF checking on webhooks because they do not originate from the browser
+  skip_before_action :verify_authenticity_token
+
+  before_action :verify_event
+
+  def create
+    InboundWebhook.create(body: payload)
+    head :ok
+  end
+
+  private
+
+  def verify_event
+    head :bad_request
+  end
+
+  def payload
+    @payload ||= request.body.read
+  end
+end
+```
 
 For testing purposes with our Movie webhooks, we have added a `verify_event` method that is always true unless you pass in a `fail_verification` url parameter on the webhook endpoint.
 
@@ -352,17 +432,72 @@ However, it is recommended that you do this in the background job that processes
 
 ## Step 5: Writing tests for our Webhook Processor
 
-`!todo`
+Now that we have our webhook processor set up, we can write some tests to make sure that it works as expected.
+
+We will start with a simple 200 OK status test on our MoviesController.
+
+First, let's create a JSON file to represent our webhook. If you have a lot of webhooks, you can create a folder for all of your webhook fixtures and separate them by provider.
+
+We'll start by creating a folder for our webhooks in `test/fixtures` and then create a JSON file for our Movie webhook.
+
+```bash
+mkdir test/fixtures/webhooks
+```
+
+And create a file for our Movie webhook.
+
+```bash
+touch test/fixtures/webhooks/movie.json
+```
+
+```json
+{
+  "title": "Dungeons & Dragons: Honor Among Thieves",
+  "release_date": "2023-03-31",
+}
+```
+
+```ruby
+# spec/requests/webhooks/movies_controller_spec.rb
+require 'test_helper'
+
+class Webhooks::MoviesControllerTest < ActionDispatch::IntegrationTest
+  def setup
+    # Load the webhook data from the JSON file
+    file_path = Rails.root.join('test', 'fixtures', 'webhooks', 'movie.json')
+    @webhook = JSON.parse(File.read(file_path))
+  end
+
+  test 'should consume webhook' do
+    # Send the POST request to the create action with the prepared data
+    post webhooks_movies_url, params: @webhook
+
+    # Check if the response status is 200 OK
+    assert_response :ok
+
+    # You can create other test files for each job or service that is called
+    # For example, check if a record was created/updated in the database
+  end
+end
+```
+
+You should have a successful test run if you run the following command:
+
+```bash
+rails test
+```
+
+You can also use more advanced testing frameworks like Rspec and FactoryBot to write tests for your webhook processor.
 
 💡 You can checkout the branch `step5-tests` using `git checkout step5-tests` to get caught up to this step before continuing.
 
-## More Advanced Topics To Consider
+## Other Topics To Consider
 
 ### Retries
 
 Usually retries are done on the Webhook Producer side of things. However, if you are receiving a lot of webhooks and you are having trouble processing them all, you may want to implement background job retries in your application. When doing this, you will also want to make sure you have an idempotency method in place to ensure that you don't process the same webhook event more than once.
 
-### Idempotency & Deduplication
+### Preventing Replay Attacks: Idempotency & Deduplication
 
 As a Webhook Consumer, you want to make sure that you don't process the same webhook event multiple times. This is especially important if you are doing something like updating a record in your database.
 
