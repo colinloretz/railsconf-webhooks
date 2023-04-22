@@ -1,0 +1,2 @@
+class InboundWebhook < ApplicationRecord
+end
