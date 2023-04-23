@@ -7,8 +7,19 @@ class Webhooks::MoviesController < Webhooks::BaseController
   #     -H 'Content-Type: application/json'
   #     -d '{"title":"Dungeons & Dragons: Honor Among Thieves"}'
   #  
-  # If you'd like to override the base controller's behavior, you can do so here
-  # def create
-  #   head :ok
-  # end
+  def create
+    # Save webhook to database
+    record = InboundWebhook.create!(body: payload)
+
+    # Queue database record for processing
+    Webhooks::MoviesJob.perform_later(record)
+
+    head :ok
+  end
+
+  private
+
+  def payload
+    @payload ||= request.body.read
+  end
 end
