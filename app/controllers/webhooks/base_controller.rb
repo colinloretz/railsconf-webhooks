@@ -3,6 +3,13 @@ class Webhooks::BaseController < ApplicationController
   skip_before_action :verify_authenticity_token
 
   def create
+    InboundWebhook.create(body: payload)
     head :ok
+  end
+
+  private
+
+  def payload
+    @payload ||= request.body.read
   end
 end
