@@ -5,5 +5,7 @@ class Webhooks::MoviesJob < ApplicationJob
     webhook_payload = JSON.parse(inbound_webhook.body, symbolize_names: true)
     # do whatever you'd like here with your webhook payload
     # call another service, update a record, etc.
+
+    inbound_webhook.update!(status: :processed)
   end
 end

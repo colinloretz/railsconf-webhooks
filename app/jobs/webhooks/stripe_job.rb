@@ -7,6 +7,9 @@ class Webhooks::StripeJob < ApplicationJob
     case event.type
     when 'customer.updated'
       # Find customer and save changes
+      inbound_webhook.update!(status: :processed)
+    else
+      inbound_webhook.update!(status: :skipped)
     end
   end
 end
