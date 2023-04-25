@@ -314,7 +314,7 @@ Let's update both of our controllers to process these webhooks by overriding the
 ```ruby
 # app/controllers/webhooks/movies_controller.rb
 
-class Webhooks::MoviesController < ApplicationController
+class Webhooks::MoviesController < Webhooks::BaseController
   def create
     # Save webhook to database
     record = InboundWebhook.create!(body: payload)
