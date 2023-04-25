@@ -243,7 +243,7 @@ end
 Now if you test your Movies webhook route, you should see a new record in the database.
 
 ```bash
-curl -X POST 'http://localhost:3000/webhooks/movies' -H 'Content-Type: application/json' -d '{"foo":"bar"}' -v
+curl -X POST 'http://localhost:3000/webhooks/movies' -H 'Content-Type: application/json' -d '{"foo":"bar"}'
 ```
 
 💡 You can checkout the branch `step2-webhook-model` using `git checkout step2-webhook-model` to get caught up to this step before continuing.
