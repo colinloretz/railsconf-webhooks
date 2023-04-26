@@ -22,8 +22,6 @@ To allow you to follow along, we've set up each step as a branch so you can see 
 
 You can check out each subsequent step with the following branches:
 
-> :warning: It's been pointed out that checking out each of these branches might not actually work as expected right now. Fix coming!
-
 - `git checkout start-here`
 - `git checkout step1-routes`
 - `git checkout step2-webhook-model`
