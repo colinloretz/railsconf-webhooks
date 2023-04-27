@@ -235,7 +235,7 @@ class Webhooks::BaseController < ApplicationController
   private
 
   def payload
-    @payload ||= request.body
+    @payload ||= request.body.read
   end
 end
 ```
