@@ -1,4 +1,4 @@
-class Webhooks::BaseController < ApplicationController
+class Webhooks::BaseController < ActionController::API
   # Disable CSRF checking on webhooks because they do not originate from the browser
   skip_before_action :verify_authenticity_token
   
